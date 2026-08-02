@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loaniq-production
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: git@github.com:your-org/loaniq-gitops.git
+    targetRevision: main
+    path: overlays/production
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: loaniq-production
+
+  syncPolicy:
+    # Deliberately NOT automated. Production sync requires a human to
+    # click "Sync" in the ArgoCD UI (or run `argocd app sync
+    # loaniq-production`) after reviewing the diff — this is the actual
+    # deployment approval gate for a lending-adjacent system, not a
+    # Jenkins approval step. ArgoCD will still show production as
+    # "OutOfSync" the moment a new tag lands in Git, so the visibility
+    # is immediate even though the apply isn't automatic.
+    syncOptions:
+      - CreateNamespace=true

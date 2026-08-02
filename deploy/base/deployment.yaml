@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loaniq
+  labels:
+    app: loaniq
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: loaniq
+  template:
+    metadata:
+      labels:
+        app: loaniq
+    spec:
+      containers:
+        - name: loaniq
+          image: loaniq  # placeholder — overlays set the real image via kustomize
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: loaniq-config
+            - secretRef:
+                name: loaniq-secrets
+          # Liveness: is the process alive at all. Readiness: can it
+          # actually serve traffic (matters because Postgres connection
+          # or model loading could be slow/failed while the process is
+          # technically up).
+          livenessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/v1/health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "1Gi"
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false  # tesseract/pdf2image write temp files

@@ -1,0 +1,36 @@
+# This manifest is applied ONCE, directly to the cluster running ArgoCD
+# (kubectl apply -f, or via ArgoCD's own "app of apps" pattern). It is
+# NOT something Jenkins touches on every build — it just tells ArgoCD
+# WHERE to watch. After this exists, Jenkins only ever pushes commits to
+# the manifest repo; ArgoCD does the rest.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loaniq-staging
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: git@github.com:your-org/loaniq-gitops.git
+    targetRevision: main
+    path: overlays/staging
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: loaniq-staging
+
+  syncPolicy:
+    # Staging auto-syncs: every commit Jenkins pushes here is deployed
+    # without a human clicking anything, which is the point of staging.
+    automated:
+      prune: true      # remove resources deleted from Git
+      selfHeal: true    # revert manual kubectl edits back to match Git
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m

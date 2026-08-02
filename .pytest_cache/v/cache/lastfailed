@@ -1,0 +1,11 @@
+{
+  "tests/test_hitl_flow.py::test_every_turn_pauses_for_human_review_before_final_response": true,
+  "tests/test_hitl_flow.py::test_rejected_review_reaches_response_generator_with_rejection_context": true,
+  "tests/test_supervisor.py::test_single_intent_selects_single_plugin": true,
+  "tests/test_supervisor.py::test_compound_message_selects_multiple_plugins": true,
+  "tests/test_supervisor.py::test_invalid_intent_values_are_dropped_not_crashed": true,
+  "tests/test_supervisor.py::test_document_intent_dropped_without_pending_action": true,
+  "tests/test_supervisor.py::test_document_intent_kept_with_pending_action": true,
+  "tests/test_supervisor.py::test_malformed_llm_output_falls_back_to_ask_question": true,
+  "tests/test_supervisor.py::test_no_user_message_routes_to_unknown_without_calling_llm": true
+}

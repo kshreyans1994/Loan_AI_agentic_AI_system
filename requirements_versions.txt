@@ -1,0 +1,46 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+
+# Agent orchestration
+# NOTE: bumped from 0.2.34 -> 1.2.2. The human_review node (see
+# app/agents/human_review.py) uses Command(resume=...) to resume a
+# paused interrupt() from the API layer, which the 0.2.x line doesn't
+# support in the form this project relies on.
+langgraph==1.2.2
+langchain==0.3.3
+langchain-groq==0.2.0
+langchain-core==0.3.10
+
+# OCR / Vision
+pytesseract==0.3.13
+pdf2image==1.17.0
+Pillow==10.4.0
+
+# RAG / Vector store
+psycopg[binary]==3.2.2
+pgvector==0.3.4
+sentence-transformers==3.1.1
+
+# Web search (fallback for time-sensitive / out-of-KB queries)
+tavily-python==0.5.0
+
+# Object storage (S3/MinIO) — see app/core/object_storage.py.
+# Only imported lazily when object_storage_enabled=True, so this stays
+# a soft dependency in spirit even though it's always installed.
+boto3==1.35.36
+
+# Infra / observability
+redis==5.0.8
+langsmith==0.1.129
+opentelemetry-api==1.27.0
+opentelemetry-sdk==1.27.0
+python-multipart==0.0.9
+python-dotenv==1.0.1
+tenacity==9.0.0
+
+# Dev / test
+pytest==8.3.3
+pytest-asyncio==0.24.0
+httpx==0.27.2

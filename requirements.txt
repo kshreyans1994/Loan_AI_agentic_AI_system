@@ -1,0 +1,46 @@
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+
+# Agent orchestration
+# NOTE: bumped from 0.2.34 -> 1.2.2. The human_review node (see
+# app/agents/human_review.py) uses Command(resume=...) to resume a
+# paused interrupt() from the API layer, which the 0.2.x line doesn't
+# support in the form this project relies on.
+langgraph
+langchain
+langchain-groq
+langchain-core
+
+# OCR / Vision
+pytesseract
+pdf2image==1.17.0
+Pillow
+
+# RAG / Vector store
+psycopg[binary]
+pgvector
+sentence-transformers
+
+# Web search (fallback for time-sensitive / out-of-KB queries)
+tavily-python
+
+# Object storage (S3/MinIO) — see app/core/object_storage.py.
+# Only imported lazily when object_storage_enabled=True, so this stays
+# a soft dependency in spirit even though it's always installed.
+boto3
+
+# Infra / observability
+redis
+langsmith
+opentelemetry-api
+opentelemetry-sdk
+python-multipart
+python-dotenv
+tenacity
+
+# Dev / test
+pytest
+pytest-asyncio
+httpx

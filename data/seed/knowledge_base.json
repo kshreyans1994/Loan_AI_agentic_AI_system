@@ -1,0 +1,38 @@
+[
+  {
+    "id": "policy-001",
+    "source": "personal_loan_eligibility_policy",
+    "content": "Personal loan applicants must have a minimum monthly income of ₹20,000, a credit score of at least 650, and the requested loan amount must not exceed 20 times their monthly income. Self-employed applicants require 2 years of ITR filings instead of a salary slip.",
+    "metadata": {"category": "eligibility"}
+  },
+  {
+    "id": "policy-002",
+    "source": "document_requirements",
+    "content": "Required KYC documents for a personal loan application are: Aadhaar card (identity and address proof), PAN card (mandatory for tax compliance on loans above ₹50,000), and the most recent salary slip or 6 months of bank statements for income verification.",
+    "metadata": {"category": "documents"}
+  },
+  {
+    "id": "policy-003",
+    "source": "interest_rate_tiers",
+    "content": "Interest rates are tiered by credit score: Prime tier (750+) receives 9.5% per annum, Standard tier (650-749) receives 11.5% per annum, and Subprime tier (550-649) receives 14% per annum. Rates are fixed for the loan tenure.",
+    "metadata": {"category": "rates"}
+  },
+  {
+    "id": "policy-004",
+    "source": "faq_processing_time",
+    "content": "Loan applications are typically processed within 24-48 hours once all required documents pass verification. Applications with incomplete or unclear document uploads may take longer due to manual review requirements.",
+    "metadata": {"category": "faq"}
+  },
+  {
+    "id": "policy-005",
+    "source": "faq_prepayment",
+    "content": "Personal loans can be prepaid or foreclosed after 12 EMIs with no prepayment penalty. Foreclosure before 12 months incurs a 2% fee on the outstanding principal.",
+    "metadata": {"category": "faq"}
+  },
+  {
+    "id": "policy-006",
+    "source": "tenure_limits",
+    "content": "Loan tenure options range from 12 to 60 months. Maximum tenure is capped at 60 months regardless of loan amount or applicant profile.",
+    "metadata": {"category": "policy"}
+  }
+]

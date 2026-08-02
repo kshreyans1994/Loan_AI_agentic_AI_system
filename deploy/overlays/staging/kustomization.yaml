@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: loaniq-staging
+
+resources:
+  - ../../base
+
+images:
+  # Jenkins' "Update GitOps Manifest" stage runs:
+  #   kustomize edit set image loaniq=ghcr.io/your-org/loaniq:<commit-sha>
+  # which rewrites the newTag value below. This is the ONE line CI is
+  # allowed to change in the GitOps repo — everything else is authored
+  # by humans via PR.
+  - name: loaniq
+    newName: ghcr.io/your-org/loaniq
+    newTag: latest
+
+replicas:
+  - name: loaniq
+    count: 1
+
+patches:
+  - target:
+      kind: Deployment
+      name: loaniq
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/memory
+        value: "512Mi"

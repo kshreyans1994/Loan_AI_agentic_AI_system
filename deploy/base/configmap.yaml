@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loaniq-config
+data:
+  # Non-secret settings only — matches app/core/config.py field names
+  # (uppercased, as pydantic-settings expects from env vars).
+  GROQ_MODEL: "llama-3.3-70b-versatile"
+  VLM_MODEL: "llama-3.2-11b-vision-preview"
+  MAX_UPLOAD_MB: "10"
+  OCR_CONFIDENCE_THRESHOLD: "0.60"
+  SESSION_TTL_SECONDS: "3600"
+  LANGSMITH_PROJECT: "loan-ai-agent"
