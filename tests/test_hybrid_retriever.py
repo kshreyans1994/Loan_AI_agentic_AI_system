@@ -1,4 +1,7 @@
-from app.rag.retriever import _compress_context, _metadata_filter, _reciprocal_rank_fusion, _rewrite_query
+from pathlib import Path
+
+from app.core.config import Settings
+from app.rag.retriever import HybridRetriever, _compress_context, _metadata_filter, _reciprocal_rank_fusion, _rewrite_query
 from app.core.schemas import RetrievedChunk
 
 
@@ -63,3 +66,50 @@ def test_compress_context_truncates_long_chunks():
     chunks = [RetrievedChunk(content=long_content, source="doc1", score=0.9)]
     compressed = _compress_context(chunks, max_chars_per_chunk=100)
     assert len(compressed[0].content) <= 150  # some slack for the truncation-to-sentence-boundary logic
+
+
+def test_embedder_uses_local_model_cache_directory(monkeypatch):
+    captured_kwargs = {}
+
+    class _StubSentenceTransformer:
+        def __init__(self, model_name: str, **kwargs) -> None:
+            captured_kwargs["model_name"] = model_name
+            captured_kwargs["kwargs"] = kwargs
+
+        def encode(self, *args, **kwargs):
+            return [[0.0] * 384]
+
+    monkeypatch.setattr("app.rag.retriever.SentenceTransformer", _StubSentenceTransformer)
+
+    settings = Settings(model_cache_dir="./models/hf-cache")
+    retriever = HybridRetriever()
+    retriever.settings = settings
+
+    _ = retriever.embedder
+
+    assert captured_kwargs["model_name"] == settings.embedding_model
+    assert captured_kwargs["kwargs"]["cache_folder"] == str(Path(settings.model_cache_dir).resolve())
+
+
+def test_connect_creates_pgvector_extension(monkeypatch):
+    executed = []
+
+    class _StubConnection:
+        def execute(self, sql: str) -> None:
+            executed.append(sql)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    monkeypatch.setattr("app.rag.retriever.psycopg.connect", lambda *args, **kwargs: _StubConnection())
+    monkeypatch.setattr("app.rag.retriever.register_vector", lambda conn: executed.append("register_vector"))
+
+    retriever = HybridRetriever()
+    retriever.settings = Settings(postgres_dsn="postgresql://loan_user:loan_pass@localhost:5432/loan_agent")
+    retriever._connect()
+
+    assert any("CREATE EXTENSION IF NOT EXISTS vector" in sql for sql in executed)
+    assert "register_vector" in executed

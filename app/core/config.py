@@ -21,12 +21,14 @@ class Settings(BaseSettings):
     # Any OpenAI-vision-compatible endpoint works here; Groq's vision-capable
     # models or a self-hosted VLM can be swapped in via this base_url.
     vlm_provider: str = "groq"
-    vlm_model: str = "llama-3.2-11b-vision-preview"
+    #vlm_model: str = "llama-3.2-11b-vision-preview"
+    vlm_model: str ="qwen/qwen3.6-27b"
 
     # --- Postgres + pgvector ---
     postgres_dsn: str = "postgresql://loan_user:loan_pass@localhost:5432/loan_agent"
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_dim: int = 384
+    model_cache_dir: str = "./models/hf-cache"
 
     # --- Redis: NOT CURRENTLY USED anywhere in the codebase. This is a
     # reserved setting for future work — rate limiting and cross-restart
@@ -44,6 +46,8 @@ class Settings(BaseSettings):
     langsmith_api_key: str | None = None
     langsmith_project: str = "loan-ai-agent"
     otel_exporter_endpoint: str | None = None
+
+    tesseract_cmd: str | None = None
 
     # --- App behavior ---
     max_upload_mb: int = 10

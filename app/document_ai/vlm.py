@@ -12,12 +12,16 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
+import re
 from typing import Any
 
 from groq import Groq
 
 from app.core.config import get_settings
 from app.core.schemas import DocumentType
+
+logger = logging.getLogger(__name__)
 
 VLM_SYSTEM_PROMPT = """You are a document understanding assistant for a loan \
 application system. You will be shown an image of a financial/identity \
@@ -64,7 +68,8 @@ class VLMClient:
                 },
             ],
             temperature=0.0,
-            max_tokens=800,
+            max_completion_tokens=800,
+            reasoning_effort="none",
         )
 
         raw = response.choices[0].message.content
@@ -72,15 +77,32 @@ class VLMClient:
 
     @staticmethod
     def _parse_json_response(raw: str) -> dict[str, Any]:
-        """VLMs occasionally wrap JSON in markdown fences — strip defensively."""
-        cleaned = raw.strip()
+        """Defensively cleans up the two shapes a VLM commonly wraps JSON
+        in: markdown code fences, and a <think>...</think> reasoning
+        block (some models, e.g. qwen3.6-27b, emit this even with
+        reasoning disabled if a caller doesn't pass reasoning_effort).
+        Logs the raw response on failure — without this, a parse failure
+        was previously silent all the way up to a vague user-facing
+        message, with nothing in the logs to diagnose it from."""
+        cleaned = re.sub(r"<think>.*?</think>", "", raw, flags=re.DOTALL).strip()
+
         if cleaned.startswith("```"):
             cleaned = cleaned.strip("`")
             if cleaned.startswith("json"):
                 cleaned = cleaned[4:]
+            cleaned = cleaned.strip()
+
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
+            match = re.search(r"\{.*\}", cleaned, flags=re.DOTALL)
+            if match:
+                try:
+                    return json.loads(match.group(0))
+                except json.JSONDecodeError:
+                    pass
+
+            logger.warning("VLM response failed to parse as JSON. Raw response: %r", raw)
             return {
                 "doc_type": DocumentType.UNKNOWN.value,
                 "fields": [],

@@ -31,7 +31,9 @@ nothing to the merge rather than short-circuiting it.
 """
 from __future__ import annotations
 
+import logging
 import re
+from pathlib import Path
 
 import psycopg
 from pgvector.psycopg import register_vector
@@ -57,6 +59,7 @@ _METADATA_KEYWORD_FILTERS = {
 # Reciprocal Rank Fusion constant — standard default from the original
 # RRF paper (Cormack et al.), not tuned for this dataset specifically.
 _RRF_K = 60
+logger = logging.getLogger("app.rag.retriever")
 
 
 def _rewrite_query(raw_query: str) -> str:
@@ -147,11 +150,17 @@ class HybridRetriever:
     @property
     def embedder(self) -> SentenceTransformer:
         if self._embedder is None:
-            self._embedder = SentenceTransformer(self.settings.embedding_model)
+            cache_dir = Path(self.settings.model_cache_dir).resolve()
+            cache_dir.mkdir(parents=True, exist_ok=True)
+            self._embedder = SentenceTransformer(
+                self.settings.embedding_model,
+                cache_folder=str(cache_dir),
+            )
         return self._embedder
 
     def _connect(self) -> psycopg.Connection:
         conn = psycopg.connect(self.settings.postgres_dsn, autocommit=True)
+        conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
         register_vector(conn)
         return conn
 
@@ -178,27 +187,34 @@ class HybridRetriever:
     # testable, even though normal callers just use retrieve_hybrid) ---
 
     def vector_search(self, query: str, top_k: int, metadata_filter: dict) -> list[RetrievedChunk]:
-        query_embedding = self.embed(query)
-        where_clause = ""
-        params: list = [query_embedding]
-        if metadata_filter:
-            where_clause = "WHERE metadata @> %s"
-            params.append(metadata_filter)
-        params.extend([query_embedding, top_k])
+        try:
+            query_embedding = self.embed(query)
+            where_clause = ""
+            params: list = [query_embedding]
+            if metadata_filter:
+                where_clause = "WHERE metadata @> %s"
+                params.append(metadata_filter)
+            params.extend([query_embedding, top_k])
 
-        with self._connect() as conn:
-            rows = conn.execute(
-                f"""
-                SELECT content, source, 1 - (embedding <=> %s) AS score
-                FROM knowledge_chunks
-                {where_clause}
-                ORDER BY embedding <=> %s
-                LIMIT %s
-                """,
-                params,
-            ).fetchall()
+            with self._connect() as conn:
+                rows = conn.execute(
+                    f"""
+                    SELECT content, source, 1 - (embedding <=> %s) AS score
+                    FROM knowledge_chunks
+                    {where_clause}
+                    ORDER BY embedding <=> %s
+                    LIMIT %s
+                    """,
+                    params,
+                ).fetchall()
 
-        return [RetrievedChunk(content=r[0], source=r[1], score=float(r[2])) for r in rows]
+            return [RetrievedChunk(content=r[0], source=r[1], score=float(r[2])) for r in rows]
+        except Exception:
+            logger.warning(
+                "vector search unavailable; falling back to lexical-only retrieval",
+                exc_info=True,
+            )
+            return []
 
     def lexical_search(self, query: str, top_k: int, metadata_filter: dict) -> list[RetrievedChunk]:
         """Postgres full-text search over knowledge_chunks.search_vector
@@ -237,7 +253,12 @@ class HybridRetriever:
             try:
                 from sentence_transformers import CrossEncoder
 
-                self._reranker = CrossEncoder(self.settings.reranker_model)
+                cache_dir = Path(self.settings.model_cache_dir).resolve()
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                self._reranker = CrossEncoder(
+                    self.settings.reranker_model,
+                    cache_folder=str(cache_dir),
+                )
             except Exception:
                 # Model load can fail offline / without HF hub access —
                 # degrade to RRF order rather than breaking retrieval.

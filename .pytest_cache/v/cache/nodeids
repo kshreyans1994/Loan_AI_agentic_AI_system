@@ -46,6 +46,8 @@
   "tests/test_hitl_flow.py::test_rejected_review_response_is_caught_by_output_guardrail_if_it_uses_approval_language",
   "tests/test_hybrid_retriever.py::test_compress_context_drops_near_duplicate_chunks",
   "tests/test_hybrid_retriever.py::test_compress_context_truncates_long_chunks",
+  "tests/test_hybrid_retriever.py::test_connect_creates_pgvector_extension",
+  "tests/test_hybrid_retriever.py::test_embedder_uses_local_model_cache_directory",
   "tests/test_hybrid_retriever.py::test_metadata_filter_detects_nri_keyword",
   "tests/test_hybrid_retriever.py::test_metadata_filter_returns_empty_for_no_match",
   "tests/test_hybrid_retriever.py::test_rewrite_query_falls_back_to_original_if_stripped_empty",

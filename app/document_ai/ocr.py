@@ -17,6 +17,8 @@ from dataclasses import dataclass
 import pytesseract
 from PIL import Image
 
+from app.core.config import get_settings
+
 
 @dataclass
 class OCRResult:
@@ -33,6 +35,18 @@ class OCREngine(ABC):
 
 class TesseractOCREngine(OCREngine):
     """Local, dependency-light OCR — good default for a portfolio/demo build."""
+
+    def __init__(self) -> None:
+        # Windows doesn't put tesseract.exe on PATH by default the way
+        # apt/brew installs do on Linux/Mac, so pytesseract can't find
+        # the binary to shell out to (TesseractNotFoundError). Setting
+        # `tesseract_cmd` explicitly here — only when configured — fixes
+        # that without hardcoding a Windows-only path into the codebase,
+        # so Linux/Docker deployments (where TESSERACT_CMD is left unset)
+        # are completely unaffected by this branch.
+        tesseract_cmd = get_settings().tesseract_cmd
+        if tesseract_cmd:
+            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
     def extract(self, image_bytes: bytes) -> OCRResult:
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
