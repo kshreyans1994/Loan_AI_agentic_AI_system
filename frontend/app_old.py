@@ -90,12 +90,6 @@ st.markdown(
     .empty-state{
         text-align:center; color:var(--muted); padding:60px 20px; font-size:14px;
     }
-    .memory-tag{
-        font-size:11px; padding:3px 10px; border-radius:20px; display:inline-block;
-        font-family:'Consolas','SF Mono',monospace;
-    }
-    .memory-tag.on{ color:#14B8A6; background:rgba(20,184,166,0.1); border:1px solid rgba(20,184,166,0.3); }
-    .memory-tag.off{ color:#8FA3B8; background:rgba(143,163,184,0.08); border:1px solid rgba(143,163,184,0.2); }
     </style>
     """,
     unsafe_allow_html=True,
@@ -106,12 +100,6 @@ st.markdown(
 # ---------------------------------------------------------------------
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
-if "user_id" not in st.session_state:
-    # Deliberately NOT auto-generated like session_id — an empty user_id
-    # means "anonymous", which is a valid, deliberate state (long-term
-    # memory is opt-in, see app/agents/long_term_memory.py). Only a
-    # value the person actually enters turns it on.
-    st.session_state.user_id = ""
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "plugin_history" not in st.session_state:
@@ -128,11 +116,7 @@ def call_chat(message: str) -> dict | None:
     try:
         resp = requests.post(
             f"{st.session_state.api_url}/chat",
-            json={
-                "session_id": st.session_state.session_id,
-                "message": message,
-                "user_id": st.session_state.user_id or None,
-            },
+            json={"session_id": st.session_state.session_id, "message": message},
             timeout=30,
         )
         resp.raise_for_status()
@@ -146,10 +130,7 @@ def call_upload(file_bytes: bytes, filename: str) -> dict | None:
     try:
         resp = requests.post(
             f"{st.session_state.api_url}/documents/upload",
-            params={
-                "session_id": st.session_state.session_id,
-                "user_id": st.session_state.user_id or None,
-            },
+            params={"session_id": st.session_state.session_id},
             files={"file": (filename, file_bytes)},
             timeout=60,
         )
@@ -192,25 +173,6 @@ def render_plugin_result(result: dict) -> None:
 # Sidebar — session controls, document upload, live plugin results
 # ---------------------------------------------------------------------
 with st.sidebar:
-    st.markdown("### 👤 Identity")
-    memory_on = bool(st.session_state.user_id.strip())
-    tag_class = "on" if memory_on else "off"
-    tag_text = "Long-term memory: ON" if memory_on else "Long-term memory: OFF (anonymous)"
-    st.markdown(f'<span class="memory-tag {tag_class}">{tag_text}</span>', unsafe_allow_html=True)
-    st.caption(
-        "Enter a user ID to let LoanIQ remember facts about you across "
-        "sessions (e.g. stated income, preferences). Leave blank to chat "
-        "anonymously — nothing is persisted long-term."
-    )
-    st.session_state.user_id = st.text_input(
-        "User ID",
-        value=st.session_state.user_id,
-        placeholder="e.g. your email or a made-up test ID",
-        label_visibility="collapsed",
-    )
-
-    st.divider()
-
     st.markdown("### 📎 Documents")
     st.caption("Upload KYC documents — Aadhaar, PAN, or salary slip.")
 
@@ -251,13 +213,7 @@ with st.sidebar:
     with st.expander("⚙️ Settings"):
         st.session_state.api_url = st.text_input("Backend API URL", value=st.session_state.api_url)
         st.caption(f"Session ID: `{st.session_state.session_id[:8]}...`")
-        if st.session_state.user_id:
-            st.caption(f"User ID: `{st.session_state.user_id}`")
         if st.button("Start new session", use_container_width=True):
-            # Deliberately does NOT touch user_id — a new session is a
-            # new conversation thread, but the same person. Resetting
-            # user_id here would defeat the entire point of long-term
-            # memory (recalling facts ACROSS sessions).
             st.session_state.session_id = str(uuid.uuid4())
             st.session_state.messages = []
             st.session_state.plugin_history = []
