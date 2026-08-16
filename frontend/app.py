@@ -69,6 +69,30 @@ st.markdown(
     section[data-testid="stSidebar"]{ background:var(--panel); border-right:1px solid var(--line); }
     section[data-testid="stSidebar"] .block-container{ padding-top:1.5rem; }
 
+    /* Identity card — the actual "who is this" display, always visible,
+       not buried in an expander like it was before. */
+    .identity-card{
+        display:flex; align-items:center; gap:10px;
+        background:var(--panel-alt); border:1px solid var(--line); border-radius:10px;
+        padding:10px 12px; margin:8px 0 4px 0;
+    }
+    .identity-card.on{ border-left:3px solid var(--teal); }
+    .identity-card.off{ border-left:3px solid var(--muted); }
+    .identity-dot{
+        width:9px; height:9px; border-radius:50%; flex-shrink:0;
+    }
+    .identity-card.on .identity-dot{ background:var(--teal); box-shadow:0 0 6px var(--teal); }
+    .identity-card.off .identity-dot{ background:var(--muted); }
+    .identity-label{
+        font-size:10px; text-transform:uppercase; letter-spacing:0.8px;
+        color:var(--muted); font-weight:700;
+    }
+    .identity-value{
+        font-size:13px; color:var(--ink); font-family:'Consolas','SF Mono',monospace;
+        word-break:break-all;
+    }
+    .session-caption{ font-size:11px; color:var(--muted); margin-top:10px; margin-bottom:2px; }
+
     /* Cards for plugin results */
     .result-card{
         background:linear-gradient(180deg, var(--panel-alt), var(--panel));
@@ -90,12 +114,6 @@ st.markdown(
     .empty-state{
         text-align:center; color:var(--muted); padding:60px 20px; font-size:14px;
     }
-    .memory-tag{
-        font-size:11px; padding:3px 10px; border-radius:20px; display:inline-block;
-        font-family:'Consolas','SF Mono',monospace;
-    }
-    .memory-tag.on{ color:#14B8A6; background:rgba(20,184,166,0.1); border:1px solid rgba(20,184,166,0.3); }
-    .memory-tag.off{ color:#8FA3B8; background:rgba(143,163,184,0.08); border:1px solid rgba(143,163,184,0.2); }
     </style>
     """,
     unsafe_allow_html=True,
@@ -118,6 +136,16 @@ if "plugin_history" not in st.session_state:
     st.session_state.plugin_history = []
 if "api_url" not in st.session_state:
     st.session_state.api_url = DEFAULT_API_URL
+
+
+def normalize_user_id(raw: str) -> str:
+    """Trim + lowercase, applied the instant a user_id is entered — not
+    just at the API boundary. Without this, 'Shreyans_1994' and
+    'shreyans_1994' silently become two different people in the
+    database (this happened during testing — see the identical-looking
+    but non-matching rows it produced in user_memory_facts). Case and
+    incidental whitespace should never be what determines identity."""
+    return raw.strip().lower()
 
 
 # ---------------------------------------------------------------------
@@ -189,25 +217,60 @@ def render_plugin_result(result: dict) -> None:
 
 
 # ---------------------------------------------------------------------
-# Sidebar — session controls, document upload, live plugin results
+# Sidebar — identity & session (always visible), documents, results
 # ---------------------------------------------------------------------
 with st.sidebar:
-    st.markdown("### 👤 Identity")
-    memory_on = bool(st.session_state.user_id.strip())
-    tag_class = "on" if memory_on else "off"
-    tag_text = "Long-term memory: ON" if memory_on else "Long-term memory: OFF (anonymous)"
-    st.markdown(f'<span class="memory-tag {tag_class}">{tag_text}</span>', unsafe_allow_html=True)
-    st.caption(
-        "Enter a user ID to let LoanIQ remember facts about you across "
-        "sessions (e.g. stated income, preferences). Leave blank to chat "
-        "anonymously — nothing is persisted long-term."
-    )
-    st.session_state.user_id = st.text_input(
+    st.markdown("### 🪪 Identity & Session")
+
+    user_id_input = st.text_input(
         "User ID",
         value=st.session_state.user_id,
-        placeholder="e.g. your email or a made-up test ID",
-        label_visibility="collapsed",
+        placeholder="e.g. your email or employee ID",
+        help=(
+            "Used to recall facts about you across sessions (long-term "
+            "memory). Automatically trimmed and lowercased, so "
+            "'Shreyans' and 'shreyans' are always treated as the same "
+            "person — case never determines identity."
+        ),
     )
+    st.session_state.user_id = normalize_user_id(user_id_input)
+
+    if st.session_state.user_id:
+        st.markdown(
+            f"""<div class="identity-card on">
+                <span class="identity-dot"></span>
+                <div>
+                    <div class="identity-label">Signed in · long-term memory on</div>
+                    <div class="identity-value">{st.session_state.user_id}</div>
+                </div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            """<div class="identity-card off">
+                <span class="identity-dot"></span>
+                <div>
+                    <div class="identity-label">Anonymous</div>
+                    <div class="identity-value">No long-term memory this session</div>
+                </div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+
+    st.markdown('<div class="session-caption">Session ID (this conversation thread)</div>', unsafe_allow_html=True)
+    st.code(st.session_state.session_id, language=None)
+
+    if st.button("🔄 Start new session", use_container_width=True):
+        # Deliberately does NOT touch user_id — a new session is a new
+        # conversation thread, but the same person. Resetting user_id
+        # here would defeat the entire point of long-term memory
+        # (recalling facts ACROSS sessions).
+        st.session_state.session_id = str(uuid.uuid4())
+        st.session_state.messages = []
+        st.session_state.plugin_history = []
+        st.rerun()
+    st.caption("Resets this conversation. Your User ID stays the same.")
 
     st.divider()
 
@@ -248,20 +311,8 @@ with st.sidebar:
 
     st.divider()
 
-    with st.expander("⚙️ Settings"):
+    with st.expander("⚙️ Backend settings"):
         st.session_state.api_url = st.text_input("Backend API URL", value=st.session_state.api_url)
-        st.caption(f"Session ID: `{st.session_state.session_id[:8]}...`")
-        if st.session_state.user_id:
-            st.caption(f"User ID: `{st.session_state.user_id}`")
-        if st.button("Start new session", use_container_width=True):
-            # Deliberately does NOT touch user_id — a new session is a
-            # new conversation thread, but the same person. Resetting
-            # user_id here would defeat the entire point of long-term
-            # memory (recalling facts ACROSS sessions).
-            st.session_state.session_id = str(uuid.uuid4())
-            st.session_state.messages = []
-            st.session_state.plugin_history = []
-            st.rerun()
 
 
 # ---------------------------------------------------------------------
